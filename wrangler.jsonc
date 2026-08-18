@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "edlaw-thamdee",
-  "compatibility_date": "2026-08-18",
+  "compatibility_date": "2026-05-22",
   "compatibility_flags": ["nodejs_compat"],
   "main": "./worker/index.ts",
   "workers_dev": true,

@@ -1,22 +1,9 @@
 import type { Metadata } from "next";
-import { Noto_Sans_Thai, Noto_Serif_Thai } from "next/font/google";
 import "./globals.css";
 
-const sans = Noto_Sans_Thai({
-  variable: "--font-sans",
-  subsets: ["thai", "latin"],
-  display: "swap",
-});
-
-const serif = Noto_Serif_Thai({
-  variable: "--font-serif",
-  subsets: ["thai", "latin"],
-  display: "swap",
-});
-
-const title = "EduLex Atlas — คลังอ้างอิงกฎหมายการศึกษาโลก";
+const title = "EduLex Atlas — หอดูดาวกฎหมายแม่บทการศึกษา";
 const description =
-  "แหล่งรวมกฎหมายแม่บทและข้อมูลอ้างอิงทางการศึกษาจากประเทศต่าง ๆ เพื่อการค้นคว้า วิเคราะห์ เปรียบเทียบ และประยุกต์ใช้";
+  "อ่านกฎหมายแม่บทการศึกษาเป็นชั้นของตัวบท เพื่อการเรียนรู้ การเทียบที่ถูกชั้น และการพัฒนากฎหมายแม่บทของไทย ไม่จัดอันดับระบบการศึกษา";
 
 export const metadata: Metadata = {
   title,
@@ -41,7 +28,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="th">
-      <body className={`${sans.variable} ${serif.variable}`}>{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
