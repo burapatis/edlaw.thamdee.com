@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
 const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
 
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -28,64 +25,87 @@ async function render() {
   );
 }
 
-test("server-renders the starter loading skeleton", async () => {
+function quotedValues(source, key) {
+  return [...source.matchAll(new RegExp(`${key}: "([^"]+)"`, "g"))].map((match) => match[1]);
+}
+
+test("server-renders EduLex Atlas in Thai", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
+  assert.match(html, /lang="th"/);
+  assert.match(html, /<title>EduLex Atlas — คลังอ้างอิงกฎหมายการศึกษาโลก<\/title>/);
+  assert.match(html, /EduLex Atlas/);
+  assert.match(html, /คลังกฎหมายการศึกษา/);
+  assert.match(html, /อังกฤษและเวลส์/);
+  assert.match(html, /ข้ามไปยังคลังกฎหมาย/);
+  assert.doesNotMatch(html, /Your site is taking shape/);
+  assert.doesNotMatch(html, /SkeletonPreview/);
+  assert.doesNotMatch(html, /react-loading-skeleton/);
 });
 
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
+test("catalog data is complete and uses unique jurisdiction codes", async () => {
+  const [data, page, layout, packageJson] = await Promise.all([
+    readFile(new URL("../app/data/laws.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
   ]);
 
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
+  const lawBlock = data.slice(data.indexOf("export const laws"), data.indexOf("export const allThemes"));
+  const ids = quotedValues(lawBlock, "id");
+  const flags = quotedValues(lawBlock, "flag");
+  assert.equal(ids.length, 25);
+  assert.equal(new Set(ids).size, 25);
+  assert.equal(flags.length, 25);
+  assert.equal(new Set(flags).size, 25);
+  assert.equal([...lawBlock.matchAll(/context: "/g)].length, 25);
+  assert.equal([...lawBlock.matchAll(/caution: "/g)].length, 25);
+  assert.equal([...lawBlock.matchAll(/framework: \{/g)].length, 25);
+  assert.equal([...lawBlock.matchAll(/aims: "/g)].length, 25);
+  assert.match(data, /key: "aims"/);
+  assert.match(data, /id: "aims-declared"/);
+  assert.match(data, /id: "aims-duty"/);
+  assert.ok(flags.includes("ON"));
+  assert.ok(flags.includes("US-CA"));
+  assert.ok(flags.includes("US-NY"));
+  assert.ok(flags.includes("US-MA"));
+  assert.ok(flags.includes("ENG"));
+  assert.ok(flags.includes("MY"));
+  assert.ok(flags.includes("ID"));
+  assert.ok(flags.includes("VN"));
+  assert.ok(flags.includes("PH"));
+  assert.ok(flags.includes("SCT"));
+  assert.ok(flags.includes("ZA"));
+  assert.ok(flags.includes("BR"));
+  assert.doesNotMatch(data, /country: "สหราชอาณาจักร"/);
+  assert.match(data, /kind: "บทบัญญัติรัฐธรรมนูญ"/);
+  assert.match(data, /www\.riigiteataja\.ee\/en\/eli\/501092025002\/consolide/);
+  assert.match(data, /subsites\.chinadaily\.com\.cn\/npc/);
+  assert.match(data, /eef\.or\.th\/about\/law/);
+  assert.match(data, /id: "asean"/);
+  assert.match(data, /region: "แอฟริกา"/);
+  assert.match(data, /region: "ละตินอเมริกา"/);
+  assert.match(data, /term: "สหพันธรัฐ"/);
 
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
-  );
+  assert.match(page, /writeUrlState/);
+  assert.match(page, /law-dialog/);
+  assert.match(page, /id="glossary"/);
+  assert.match(page, /applyPreset/);
+  assert.match(layout, /openGraph/);
+  assert.match(layout, /const title = "EduLex Atlas/);
+  assert.match(layout, /siteName: "EduLex Atlas"/);
+  assert.doesNotMatch(page, /SkeletonPreview|codex-preview/);
+  assert.doesNotMatch(layout, /Starter Project/);
+  assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+  assert.doesNotMatch(packageJson, /drizzle-orm|drizzle-kit/);
 
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
-
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
-  );
+  await assert.rejects(access(new URL("app/chatgpt-auth.ts", templateRoot)));
+  await assert.rejects(access(new URL("examples", templateRoot)));
+  await assert.rejects(access(new URL("db", templateRoot)));
+  await assert.rejects(access(new URL("drizzle", templateRoot)));
+  await assert.rejects(access(new URL("app/_sites-preview", templateRoot)));
+  await assert.rejects(access(new URL("public/_sites-preview", templateRoot)));
 });
