@@ -18,6 +18,7 @@ type Law = {
   url: string;
   summary: string;
   themes: string[];
+  related?: string[];
   color: string;
 };
 
@@ -328,6 +329,30 @@ const laws: Law[] = [
     themes: ["มาตรฐานและความรับผิด", "School Finance", "โอกาสที่เท่าเทียม"],
     color: "#66784c",
   },
+  {
+    id: "thailand",
+    country: "ประเทศไทย",
+    flag: "TH",
+    region: "เอเชียแปซิฟิก",
+    title: "พระราชบัญญัติการศึกษาแห่งชาติ พ.ศ. 2542",
+    localTitle: "National Education Act B.E. 2542 (1999)",
+    year: "2542",
+    updated: "แก้ไขเพิ่มเติมถึงฉบับที่ 4 พ.ศ. 2562",
+    system: "รวมศูนย์",
+    level: "ทุกระดับและทุกรูปแบบการศึกษา",
+    language: "ไทย",
+    source: "กระทรวงศึกษาธิการ",
+    url: "https://www.moe.go.th/%E0%B8%9E%E0%B8%A3%E0%B8%9A-%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%A8%E0%B8%B6%E0%B8%81%E0%B8%A9%E0%B8%B2%E0%B9%81%E0%B8%AB%E0%B9%88%E0%B8%87%E0%B8%8A%E0%B8%B2%E0%B8%95%E0%B8%B4-%E0%B8%9E-%E0%B8%A8-2542/",
+    summary: "กฎหมายแม่บทที่วางหลักการศึกษาตลอดชีวิต สิทธิและความเสมอภาค การมีส่วนร่วมของครอบครัว ชุมชน และเอกชน การกระจายอำนาจสู่เขตพื้นที่และสถานศึกษา มาตรฐานและการประกันคุณภาพ ตลอดจนทรัพยากรเพื่อการศึกษา",
+    themes: ["การศึกษาตลอดชีวิต", "การกระจายอำนาจ", "ประกันคุณภาพ"],
+    related: [
+      "รัฐธรรมนูญแห่งราชอาณาจักรไทย พ.ศ. 2560 — มาตรา 54",
+      "พระราชบัญญัติการศึกษาภาคบังคับ พ.ศ. 2545",
+      "พระราชบัญญัติกองทุนเพื่อความเสมอภาคทางการศึกษา พ.ศ. 2561",
+      "พระราชบัญญัติการพัฒนาเด็กปฐมวัย พ.ศ. 2562",
+    ],
+    color: "#8b5340",
+  },
 ];
 
 const regions = ["ทั้งหมด", "ยุโรป", "เอเชียแปซิฟิก", "อเมริกาเหนือ"] as const;
@@ -390,7 +415,7 @@ export default function Home() {
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ค้นหาประเทศ ชื่อกฎหมาย หรือประเด็นสำคัญ…" aria-label="ค้นหากฎหมายการศึกษา" />
             <a href="#library" aria-label="ไปยังผลการค้นหา">ค้นหา</a>
           </div>
-          <div className="hero-notes"><span>17 เขตอำนาจ</span><span>3 ภูมิภาค</span><span>แหล่งข้อมูลภาครัฐ</span></div>
+          <div className="hero-notes"><span>18 เขตอำนาจ</span><span>3 ภูมิภาค</span><span>แหล่งข้อมูลภาครัฐ</span></div>
         </div>
         <aside className="hero-feature" aria-label="กฎหมายแนะนำ">
           <div className="feature-top"><span>เอกสารแนะนำ</span><span className="live-dot">ตรวจสอบแล้ว</span></div>
@@ -504,6 +529,7 @@ export default function Home() {
           </div>
           <div className="modal-body">
             <div className="modal-summary"><span>สาระสำคัญโดยสรุป</span><p>{activeLaw.summary}</p></div>
+            {activeLaw.related && <div className="related-laws"><span>กฎหมายสำคัญที่ควรอ่านร่วมกัน</span><ul>{activeLaw.related.map((item) => <li key={item}>{item}</li>)}</ul></div>}
             <dl><div><dt>ระบบบริหาร</dt><dd>{activeLaw.system}</dd></div><div><dt>ขอบเขต</dt><dd>{activeLaw.level}</dd></div><div><dt>ภาษา</dt><dd>{activeLaw.language}</dd></div><div><dt>สถานะข้อมูล</dt><dd>{activeLaw.updated}</dd></div></dl>
             <div className="modal-tags">{activeLaw.themes.map((theme) => <span key={theme}>{theme}</span>)}</div>
             <a className="source-link" href={activeLaw.url} target="_blank" rel="noreferrer"><span><small>แหล่งข้อมูลทางการ</small><b>{activeLaw.source}</b></span><strong>เปิดเอกสารต้นฉบับ ↗</strong></a>
