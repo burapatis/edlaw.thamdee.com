@@ -17,6 +17,7 @@ import {
   findBrief,
   findGap,
   findHeritage,
+  findHorizon,
   findLaw,
   findNeaTopic,
   findPhrase,
@@ -35,6 +36,7 @@ import {
   librarySorts,
   matchesKindFilter,
   neaTopics,
+  neaChapters,
   onePassSteps,
   parseBriefId,
   parseCompareIds,
@@ -109,6 +111,24 @@ function writeUrlState(next: {
   history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+const deepSectionIds = new Set([
+  "deep-read",
+  "how-to-read",
+  "silence-map",
+  "glossary",
+  "reading-paths",
+  "traps",
+  "thai-path",
+  "nea-map",
+  "law-stacks",
+  "principle-gap",
+  "heritage",
+  "rewrite-timeline",
+  "drafter-phrases",
+  "horizon",
+  "catalog-limits",
+]);
+
 function scrollToLibrary() {
   document.getElementById("library")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -127,6 +147,8 @@ export default function Home() {
   const [notice, setNotice] = useState<string | null>(null);
   const lawDialogRef = useRef<HTMLDialogElement>(null);
   const compareDialogRef = useRef<HTMLDialogElement>(null);
+  const deepReadRef = useRef<HTMLDetailsElement>(null);
+  const libraryMoreRef = useRef<HTMLDetailsElement>(null);
   const noticeTimer = useRef<number | null>(null);
   const skipUrlWrite = useRef(true);
   const compareReady = useRef(false);
@@ -200,7 +222,17 @@ export default function Home() {
 
   const showKindInLibrary = (next: KindFilter) => {
     setKind(next);
+    if (libraryMoreRef.current) libraryMoreRef.current.open = true;
     window.setTimeout(scrollToLibrary, 0);
+  };
+
+  const openDeepSection = (id: string) => {
+    if ((deepSectionIds.has(id) || id.startsWith("horizon-")) && deepReadRef.current) {
+      deepReadRef.current.open = true;
+    }
+    window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   };
 
   const openCompare = () => {
@@ -235,7 +267,7 @@ export default function Home() {
       return;
     }
     if (step.href) {
-      document.getElementById(step.href.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openDeepSection(step.href.slice(1));
     }
   };
 
@@ -344,9 +376,21 @@ export default function Home() {
       }
     };
     apply(true);
-    const onPop = () => apply(true);
+    const openHash = () => {
+      const id = window.location.hash.replace(/^#/, "");
+      if ((deepSectionIds.has(id) || id.startsWith("horizon-")) && deepReadRef.current) deepReadRef.current.open = true;
+    };
+    openHash();
+    const onPop = () => {
+      apply(true);
+      openHash();
+    };
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("hashchange", openHash);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", openHash);
+    };
   }, []);
 
   useEffect(() => {
@@ -415,16 +459,16 @@ export default function Home() {
       <header className="site-header">
         <a className="brand" href="#top" aria-label="หน้าแรก EduLex Atlas">
           <span className="brand-seal"><span>EA</span></span>
-          <span className="brand-copy"><b>EduLex Atlas</b><small>หอดูดาวกฎหมายแม่บทการศึกษา</small></span>
+          <span className="brand-copy"><b>EduLex Atlas</b><small>คลังกฎหมายการศึกษา</small></span>
         </a>
         <nav className={mobileMenu ? "nav open" : "nav"} id="site-nav" aria-label="เมนูหลัก">
-          <a href="#one-pass" onClick={() => setMobileMenu(false)}>รอบหนึ่ง</a>
-          <a href="#how-to-read" onClick={() => setMobileMenu(false)}>วิธีอ่าน</a>
-          <a href="#drafter-brief" onClick={() => setMobileMenu(false)}>ใบงานผู้ร่าง</a>
+          <a href="#one-pass" onClick={() => setMobileMenu(false)}>วิธีใช้</a>
           <a href="#library" onClick={() => setMobileMenu(false)}>คลังกฎหมาย</a>
-          <a href="#about" onClick={() => setMobileMenu(false)}>เกี่ยวกับโครงการ</a>
+          <a href="#framework" onClick={() => setMobileMenu(false)}>เทียบ</a>
+          <a href="#drafter-brief" onClick={() => setMobileMenu(false)}>ใบงานไทย</a>
+          <a href="#about" onClick={() => setMobileMenu(false)}>เกี่ยวกับ</a>
         </nav>
-        <a className="header-cta" href="#drafter-brief">ใบงานผู้ร่าง <span>↗</span></a>
+        <a className="header-cta" href="#library">เปิดคลัง <span>↗</span></a>
         <button
           type="button"
           className="menu-button"
@@ -440,56 +484,30 @@ export default function Home() {
       <section className="hero" id="top">
         <div className="hero-orbit orbit-one"></div><div className="hero-orbit orbit-two"></div>
         <div className="hero-content">
-          <div className="eyebrow"><span></span> Framework Education Law Observatory</div>
-          <h1>อ่านกฎหมายแม่บทการศึกษา<br/><em>เป็นชั้นของตัวบท</em></h1>
-          <p className="hero-lead">คลังนี้ไม่ได้เล่าว่าระบบการศึกษาประเทศใดเก่งกว่า แต่เปิดกฎหมายแม่บทในฐานะเครื่องมือจัดอำนาจ หน้าที่ และจุดมุ่งหมาย แล้วเทียบกับพระราชบัญญัติการศึกษาแห่งชาติไทยทีละชั้นของเอกสาร</p>
-          <form
-            className="hero-search"
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              scrollToLibrary();
-            }}
-          >
-            <Mark label="⌕" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ค้นหาประเทศ ชื่อกฎหมาย หรือประเด็นสำคัญ…"
-              aria-label="ค้นหากฎหมายการศึกษา"
-            />
-            <button type="submit">ค้นหา</button>
-          </form>
-          <div className="hero-paths" aria-label="ทางเข้าคลัง">
-            <a href="#one-pass">เรียนจบรอบหนึ่ง</a>
-            <a href="#path-learner">ผู้เรียน</a>
-            <a href="#path-policy">ผู้บริหาร</a>
-            <a href="#path-drafter">ผู้พัฒนากฎหมายไทย</a>
+          <div className="eyebrow"><span></span> คลังกฎหมายการศึกษา</div>
+          <h1>เปิดกฎหมายแม่บทไทย<br/><em>แล้วเทียบต่างประเทศทีละชั้น</em></h1>
+          <p className="hero-lead">ไม่จัดอันดับว่าระบบการศึกษาประเทศใดเก่งกว่า เริ่มจากพระราชบัญญัติการศึกษาแห่งชาติ แล้วเปิดฉบับอื่นที่พูดเรื่องเดียวกัน</p>
+          <div className="hero-actions">
+            <button type="button" className="hero-primary" onClick={() => { const law = findLaw("thailand"); if (law) openLaw(law); }}>เปิดกฎหมายไทย</button>
+            <a className="hero-secondary" href="#library">เปิดคลัง</a>
           </div>
-          <div className="hero-notes"><span>{jurisdictionCount} เขตอำนาจ</span><span>แยกชนิดเอกสาร</span><span>ไม่จัดอันดับประเทศ</span></div>
+          <div className="hero-notes"><span>{jurisdictionCount} เขตอำนาจ</span><span>ไม่จัดอันดับประเทศ</span></div>
         </div>
         <aside className="hero-feature" aria-label="ขั้วเทียบหลัก">
-          <div className="feature-top"><span>ขั้วเทียบหลัก</span><span className="live-dot">ไม่จัดอันดับ</span></div>
+          <div className="feature-top"><span>เริ่มจากฉบับนี้</span><span className="live-dot">ไม่จัดอันดับ</span></div>
           <div className="feature-country"><span className="flag-disc">TH</span><div><small>THAILAND</small><h2>พ.ร.บ.การศึกษาแห่งชาติ</h2></div></div>
-          <blockquote>คลังนี้เทียบต่างประเทศกับกฎหมายแม่บทไทย ถอดจากฉบับที่เลือก ไม่เติมชื่อเสียงประเทศลงในคำตอบ</blockquote>
+          <blockquote>เทียบต่างประเทศกับกฎหมายแม่บทไทย ทีละชั้นของเอกสาร</blockquote>
           <div className="feature-meta"><div><small>ประกาศใช้</small><b>พ.ศ. 2542</b></div><div><small>ชนิดเอกสาร</small><b>กฎหมายแม่บท</b></div></div>
           <button type="button" onClick={() => { const law = findLaw("thailand"); if (law) openLaw(law); }}>อ่านฉบับไทย <span>→</span></button>
         </aside>
       </section>
 
-      <section className="purpose-strip" aria-label="หลักการอ่านคลังนี้">
-        <a href="#how-to-read"><Mark label="01"/><span><b>ชนิดเอกสาร</b><small>แม่บท ประมวล รัฐธรรมนูญ หรือกฎหมายท้องถิ่น</small></span></a>
-        <a href="#silence-map"><Mark label="02"/><span><b>จุดมุ่งหมาย</b><small>กฎหมายประกาศว่าการศึกษาเพื่ออะไร หรือเงียบ</small></span></a>
-        <a href="#traps"><Mark label="03"/><span><b>กับดักการเทียบ</b><small>ห้ามอ่านฉบับหนึ่งแทนทั้งระบบหรือทั้งประเทศ</small></span></a>
-        <a href="#nea-map"><Mark label="04"/><span><b>ต่อยอดสู่ พ.ร.บ. ไทย</b><small>เทียบทีละชั้น แล้วออกด้วยใบงานผู้ร่าง</small></span></a>
-      </section>
-
       <section className="one-pass-section" id="one-pass">
         <div className="section-heading">
           <div>
-            <span className="kicker">ONE COMPLETE PASS</span>
+            <span className="kicker">วิธีใช้</span>
             <h2>เรียนจบรอบหนึ่งบนเว็บนี้</h2>
-            <p>ถ้ามีเวลาครั้งเดียว เดินห้าขั้นนี้ จะได้คำตอบสามข้อ: กำลังถือเอกสารชนิดใด ห้ามเทียบกับอะไร และประเด็นนี้สัมพันธ์กับ พ.ร.บ. 2542 ตรงไหน</p>
+            <p>ถ้าเพิ่งเข้ามาครั้งแรก เดินห้าขั้นนี้ก็พอ ไม่ต้องอ่านทุกตอนก่อนเปิดคลัง</p>
           </div>
         </div>
         <ol className="one-pass-steps">
@@ -503,7 +521,363 @@ export default function Home() {
           ))}
         </ol>
       </section>
+      <section className="library-section" id="library">
+        <div className="section-heading">
+          <div>
+            <span className="kicker">คลังกฎหมาย</span>
+            <h2>คลังกฎหมายการศึกษา</h2>
+            <p>เปิดการ์ดได้เลย ปีที่เห็นคือปีประกาศใช้หรือปีฉบับที่คลังเทียบ ไม่ใช่ปีที่ระบบมีชื่อเสียง</p>
+          </div>
+          <div className="result-count"><strong>{String(filtered.length).padStart(2, "0")}</strong><span>รายการ<br/>ที่ค้นพบ</span></div>
+        </div>
+        <div className="library-toolbar">
+          <div className="filter-tabs" role="group" aria-label="กรองตามภูมิภาค">
+            {regions.map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={region === item ? "active" : ""}
+                aria-pressed={region === item}
+                onClick={() => setRegion(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <label className="small-search">
+            <Mark label="⌕"/>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ค้นหาในคลัง…"
+              aria-label="ค้นหาในคลังกฎหมาย"
+            />
+          </label>
+        </div>
+        {activeFilters.length > 0 && (
+          <div className="active-filters" aria-label="ตัวกรองที่เปิดอยู่">
+            {activeFilters.map((chip) => (
+              <button type="button" key={chip.key} onClick={chip.clear}>
+                {chip.label} <span aria-hidden="true">×</span>
+              </button>
+            ))}
+            <button type="button" className="clear-filters" onClick={resetFilters}>ล้างทั้งหมด</button>
+          </div>
+        )}
+        <details className="library-more" ref={libraryMoreRef}>
+          <summary>กรองชนิดเอกสาร ระบบบริหาร และเรียงรายการ</summary>
+          <div className="library-filters">
+            <div className="filter-tabs" role="group" aria-label="กรองตามระบบบริหาร">
+              {systems.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  className={system === item ? "active" : ""}
+                  aria-pressed={system === item}
+                  onClick={() => setSystem(item)}
+                >
+                  {item === "ทั้งหมด" ? "ทุกระบบบริหาร" : item}
+                </button>
+              ))}
+            </div>
+            <label className="theme-filter">
+              <span>ประเด็น</span>
+              <select value={theme} onChange={(e) => setTheme(e.target.value)} aria-label="กรองตามประเด็นสำคัญ">
+                <option value="ทั้งหมด">ทุกประเด็น</option>
+                {allThemes.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="library-filters kind-filters">
+            <div className="filter-tabs" role="group" aria-label="กรองตามชนิดเอกสาร">
+              {kindFilters.map((item) => (
+                <button
+                  type="button"
+                  key={item}
+                  className={kind === item ? "active" : ""}
+                  aria-pressed={kind === item}
+                  onClick={() => setKind(item)}
+                >
+                  {item === "ทั้งหมด" ? "ทุกชนิดเอกสาร" : item}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="library-sortbar">
+            <div className="filter-tabs" role="group" aria-label="เรียงรายการในคลัง">
+              {librarySorts.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={librarySort === item.id ? "active" : ""}
+                  aria-pressed={librarySort === item.id}
+                  onClick={() => setLibrarySort(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
 
+        <div className="law-grid">
+          {visibleLaws.map((law, index) => {
+            const isSelected = selected.includes(law.id);
+            const compareFull = selected.length >= MAX_COMPARE && !isSelected;
+            return (
+              <article className="law-card" key={law.id} style={{"--accent": law.color} as React.CSSProperties}>
+                <div className="card-head">
+                  <span className="flag-disc small">{law.flag}</span>
+                  <button
+                    type="button"
+                    className={isSelected ? "compare active" : "compare"}
+                    onClick={() => toggleCompare(law.id)}
+                    disabled={compareFull}
+                    title={compareFull ? `เลือกได้สูงสุด ${MAX_COMPARE} รายการ` : undefined}
+                    aria-pressed={isSelected}
+                    aria-label={`${isSelected ? "ยกเลิก" : "เลือก"} ${law.country} เพื่อเปรียบเทียบ`}
+                  >
+                    <span>{isSelected ? "✓" : "+"}</span> เปรียบเทียบ
+                  </button>
+                </div>
+                <div className="card-country">{law.country}<span>{law.region}</span></div>
+                <h3>{law.title}</h3>
+                <p className="local-title">{law.localTitle}</p>
+                <p className="card-kind">{law.kind}</p>
+                <p className="card-summary">{law.summary}</p>
+                <div className="tags">{law.themes.slice(0, 2).map((item) => <span key={item}>{item}</span>)}</div>
+                <div className="card-foot">
+                  <span><small>ปีประกาศใช้</small><b>{law.year}</b></span>
+                  <button type="button" onClick={() => openLaw(law)}>ดูรายละเอียด <span>↗</span></button>
+                </div>
+                <span className="card-number">{String(index + 1).padStart(2, "0")}</span>
+              </article>
+            );
+          })}
+        </div>
+        {filtered.length === 0 && (
+          <div className="empty-state">
+            <span>⌕</span>
+            <h3>ยังไม่พบรายการที่ตรงกัน</h3>
+            <p>ลองใช้คำค้นอื่น หรือล้างตัวกรองภูมิภาค ระบบบริหาร ชนิดเอกสาร และประเด็น</p>
+            <button type="button" onClick={resetFilters}>ล้างตัวกรอง</button>
+          </div>
+        )}
+      </section>
+
+      <section className="compare-framework" id="framework">
+        <div className="framework-title">
+          <span className="kicker">เทียบกฎหมาย</span>
+          <h2>เทียบตามคำถาม<br/>ไม่ใช่ตามชื่อเสียงประเทศ</h2>
+          <p>เลือกชุดเทียบสูงสุดสามฉบับ ตามสิทธิ ครู จุดมุ่งหมาย หรือคำถามของไทย</p>
+          <div className="preset-group">
+            <span>ตามมิติ</span>
+            <div className="preset-list">
+              {comparePresets.filter((preset) => !preset.forThai).map((preset) => (
+                <button type="button" className="preset-chip" key={preset.id} onClick={() => applyPreset(preset.ids)}>
+                  <b>{preset.title}</b>
+                  <small>{preset.blurb}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="preset-group">
+            <span>สำหรับคำถามไทย</span>
+            <div className="preset-list">
+              {comparePresets.filter((preset) => preset.forThai).map((preset) => (
+                <button type="button" className="preset-chip" key={preset.id} onClick={() => applyPreset(preset.ids)}>
+                  <b>{preset.title}</b>
+                  <small>{preset.blurb}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="framework-list">
+          {frameworkDimensions.map((item) => {
+            const presets = comparePresets.filter((entry) => entry.dimension === item.key);
+            const primary = presets.find((entry) => !entry.forThai) ?? presets[0];
+            return (
+              <button
+                type="button"
+                className="framework-item"
+                key={item.key}
+                onClick={() => {
+                  if (item.key === "aims") {
+                    openDeepSection("silence-map");
+                    return;
+                  }
+                  if (primary) applyPreset(primary.ids);
+                }}
+              >
+                <span>{item.no}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.question}</p>
+                  {item.key === "aims" ? (
+                    <em>ทางเข้า: แผนที่ความเงียบเรื่องจุดมุ่งหมาย</em>
+                  ) : (
+                    presets.map((preset) => (
+                      <em key={preset.id}>ชุดเทียบ: {preset.title}</em>
+                    ))
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="brief-section" id="drafter-brief">
+        <div className="section-heading">
+          <div>
+            <span className="kicker">ใบงานไทย</span>
+            <h2>คุณกำลังร่างเรื่องอะไร</h2>
+            <p>เลือกหมวดใน พ.ร.บ. 2542 แล้วคัดลอกชุดเทียบและคำถามร่าง ไม่ใช่รายชื่อประเทศที่น่าเลียน</p>
+          </div>
+        </div>
+        <div className="brief-shell">
+          <div className="brief-topics" role="tablist" aria-label="หมวดใน พ.ร.บ. 2542">
+            {drafterBriefs.map((item) => {
+              const topic = findNeaTopic(item.topicId);
+              const chapter = neaChapters.find((entry) => entry.id === item.chapterId);
+              if (!topic) return null;
+              return (
+                <button
+                  type="button"
+                  key={item.topicId}
+                  role="tab"
+                  aria-selected={briefTopic === item.topicId}
+                  className={briefTopic === item.topicId ? "active" : ""}
+                  onClick={() => setBriefTopic(item.topicId)}
+                >
+                  {chapter ? <small>{chapter.no}</small> : null}
+                  {topic.title}
+                </button>
+              );
+            })}
+          </div>
+          {activeBrief && activeBriefTopic && (
+            <article className="brief-sheet" role="tabpanel">
+              <span>ออกจากคลังด้วยใบนี้</span>
+              <h3>{activeBriefTopic.title}</h3>
+              <p><b>สิ่งที่ พ.ร.บ. 2542 เขียน</b> {activeBriefTopic.thaiWrites}</p>
+              <div className="brief-block">
+                <b>ฉบับที่พูดชั้นเดียวกัน</b>
+                <ul>
+                  {activeBriefTopic.sameLayerIds.map((id) => {
+                    const law = findLaw(id);
+                    return law ? (
+                      <li key={id}>
+                        <button type="button" onClick={() => openLaw(law)}>
+                          {law.flag} {law.country} — {law.title}
+                        </button>
+                      </li>
+                    ) : null;
+                  })}
+                </ul>
+              </div>
+              <p><b>ห้ามลอก</b> {activeBriefTopic.doNotCopy}</p>
+              {activeBrief.thaiMechanismIds.length > 0 && (
+                <div className="brief-block">
+                  <b>กลไกไทยในคลัง</b>
+                  <ul>
+                    {activeBrief.thaiMechanismIds.map((id) => {
+                      const law = findLaw(id);
+                      return law ? (
+                        <li key={id}>
+                          <button type="button" onClick={() => openLaw(law)}>
+                            {law.flag} {law.country} — {law.title}
+                          </button>
+                        </li>
+                      ) : null;
+                    })}
+                  </ul>
+                </div>
+              )}
+              {activeBriefTrap && (
+                <p>
+                  <b>กับดักที่ต้องกัน</b> {activeBriefTrap.title} {activeBriefTrap.whyThai}
+                </p>
+              )}
+              {activeBriefGap && (
+                <p>
+                  <b>ช่องว่างหลักกับกลไก</b> {activeBriefGap.principle} {activeBriefGap.mechanism}
+                </p>
+              )}
+              {activeBriefStack && activeBriefStackLaw && (
+                <div className="brief-block">
+                  <b>แผนภาพชั้นที่ควรเปิดคู่</b>
+                  <p>{activeBriefStackLaw.flag} {activeBriefStackLaw.country} — {activeBriefStack.role}</p>
+                  <ol className="law-stack">
+                    {activeBriefStack.layers.map((layer, index) => {
+                      const content = stackLayerContent(activeBriefStackLaw, layer);
+                      return (
+                        <li key={`${activeBriefStack.lawId}-${index}`} className={content.current ? "current" : ""}>
+                          <b>{layer.label}</b>
+                          {content.catalogId ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = findLaw(content.catalogId);
+                                if (next) openLaw(next);
+                              }}
+                            >
+                              {content.title}
+                            </button>
+                          ) : content.href ? (
+                            <a href={content.href} target="_blank" rel="noopener noreferrer">{content.title}</a>
+                          ) : (
+                            <span>{content.title}</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
+              {activeBriefHeritage && activeBriefHeritageLaw && (
+                <p>
+                  <b>มรดกในตัวบท</b> {activeBriefHeritageLaw.flag} {activeBriefHeritageLaw.country}: {activeBriefHeritage.heritage}
+                </p>
+              )}
+              {activeBrief.phraseVerbs.length > 0 && (
+                <div className="brief-block">
+                  <b>กริยาที่ใช้ร่าง</b>
+                  <ul>
+                    {activeBrief.phraseVerbs.map((verb) => {
+                      const phrase = findPhrase(verb);
+                      return phrase ? (
+                        <li key={verb}>
+                          <strong>{phrase.verb}</strong> {phrase.clause}
+                          <small>{phrase.useWhen}</small>
+                        </li>
+                      ) : null;
+                    })}
+                  </ul>
+                </div>
+              )}
+              <p><b>คำถามสำหรับผู้ร่าง</b> {activeBriefTopic.drafterQuestion}</p>
+              <p className="brief-takeaway"><b>สิ่งที่ควรทำต่อ</b> {activeBrief.takeaway}</p>
+              <div className="brief-actions">
+                <button type="button" onClick={() => applyPreset(activeBriefTopic.sameLayerIds)}>เปิดคู่เทียบชั้นนี้</button>
+                <button type="button" onClick={copyBrief}>คัดลอกใบงานนี้</button>
+                {activeBriefTrap && (
+                  <button type="button" onClick={() => applyPreset(activeBriefTrap.ids)}>เปิดคู่กับดักนี้</button>
+                )}
+                <button type="button" onClick={() => openDeepSection(`horizon-${activeBrief.chapterId}`)}>ดูแบบอย่างเชิงอุดมคติของหมวดนี้</button>
+              </div>
+            </article>
+          )}
+        </div>
+      </section>
+
+      <details className="deep-read" id="deep-read" ref={deepReadRef}>
+        <summary>
+          <span className="kicker">เมื่อพร้อมอ่านเชิงลึก</span>
+          <strong>ทำไมเว็บนี้จึงอ่านเป็นชั้นของตัวบท</strong>
+          <p>ชนิดเอกสาร กับดักการเทียบ แผนภาพกฎหมาย แบบอย่างเชิงอุดมคติ และขอบเขตของคลัง เปิดเมื่อต้องการ ไม่ต้องอ่านก่อนเข้าคลัง</p>
+        </summary>
       <section className="learn-section" id="how-to-read">
         <div className="section-heading">
           <div>
@@ -676,7 +1050,7 @@ export default function Home() {
           <div>
             <span className="kicker">FROM CATALOG TO THE THAI ACT</span>
             <h2>จากคลังสู่ พ.ร.บ. 2542</h2>
-            <p>ไทยเป็นขั้วเทียบถาวร แต่ละประเด็นมีสิ่งที่กฎหมายไทยเขียน ฉบับต่างประเทศที่พูดชั้นเดียวกัน สิ่งที่ห้ามลอก และคำถามสำหรับผู้ร่างครั้งต่อไป</p>
+            <p>ไทยเป็นขั้วเทียบถาวร เก้าหมวดในแม่บทมีสิ่งที่กฎหมายไทยเขียน ฉบับที่พูดชั้นเดียวกัน สิ่งที่ห้ามลอก และคำถามสำหรับผู้ร่างครั้งต่อไป</p>
           </div>
         </div>
         <div className="nea-grid">
@@ -779,210 +1153,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="library-section" id="library">
-        <div className="section-heading">
-          <div>
-            <span className="kicker">CURATED LIBRARY</span>
-            <h2>คลังกฎหมายการศึกษา</h2>
-            <p>ปีบนการ์ดเป็นปีประกาศใช้หรือปีฉบับที่คลังเปิดเทียบ ไม่ใช่ปีที่ระบบมีชื่อเสียง คัดสรรจากฐานข้อมูลกฎหมายของรัฐและแหล่งอ้างอิงที่เชื่อถือได้</p>
-          </div>
-          <div className="result-count"><strong>{String(filtered.length).padStart(2, "0")}</strong><span>รายการ<br/>ที่ค้นพบ</span></div>
-        </div>
-        <div className="library-toolbar">
-          <div className="filter-tabs" role="group" aria-label="กรองตามภูมิภาค">
-            {regions.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={region === item ? "active" : ""}
-                aria-pressed={region === item}
-                onClick={() => setRegion(item)}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          <label className="small-search">
-            <Mark label="⌕"/>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ค้นหาในคลัง…"
-              aria-label="ค้นหาในคลังกฎหมาย"
-            />
-          </label>
-        </div>
-        <div className="library-filters">
-          <div className="filter-tabs" role="group" aria-label="กรองตามระบบบริหาร">
-            {systems.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={system === item ? "active" : ""}
-                aria-pressed={system === item}
-                onClick={() => setSystem(item)}
-              >
-                {item === "ทั้งหมด" ? "ทุกระบบบริหาร" : item}
-              </button>
-            ))}
-          </div>
-          <label className="theme-filter">
-            <span>ประเด็น</span>
-            <select value={theme} onChange={(e) => setTheme(e.target.value)} aria-label="กรองตามประเด็นสำคัญ">
-              <option value="ทั้งหมด">ทุกประเด็น</option>
-              {allThemes.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="library-filters kind-filters">
-          <div className="filter-tabs" role="group" aria-label="กรองตามชนิดเอกสาร">
-            {kindFilters.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={kind === item ? "active" : ""}
-                aria-pressed={kind === item}
-                onClick={() => setKind(item)}
-              >
-                {item === "ทั้งหมด" ? "ทุกชนิดเอกสาร" : item}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="library-sortbar">
-          <div className="filter-tabs" role="group" aria-label="เรียงรายการในคลัง">
-            {librarySorts.map((item) => (
-              <button
-                type="button"
-                key={item.id}
-                className={librarySort === item.id ? "active" : ""}
-                aria-pressed={librarySort === item.id}
-                onClick={() => setLibrarySort(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {activeFilters.length > 0 && (
-          <div className="active-filters" aria-label="ตัวกรองที่เปิดอยู่">
-            {activeFilters.map((chip) => (
-              <button type="button" key={chip.key} onClick={chip.clear}>
-                {chip.label} <span aria-hidden="true">×</span>
-              </button>
-            ))}
-            <button type="button" className="clear-filters" onClick={resetFilters}>ล้างทั้งหมด</button>
-          </div>
-        )}
-
-        <div className="law-grid">
-          {visibleLaws.map((law, index) => {
-            const isSelected = selected.includes(law.id);
-            const compareFull = selected.length >= MAX_COMPARE && !isSelected;
-            return (
-              <article className="law-card" key={law.id} style={{"--accent": law.color} as React.CSSProperties}>
-                <div className="card-head">
-                  <span className="flag-disc small">{law.flag}</span>
-                  <button
-                    type="button"
-                    className={isSelected ? "compare active" : "compare"}
-                    onClick={() => toggleCompare(law.id)}
-                    disabled={compareFull}
-                    title={compareFull ? `เลือกได้สูงสุด ${MAX_COMPARE} รายการ` : undefined}
-                    aria-pressed={isSelected}
-                    aria-label={`${isSelected ? "ยกเลิก" : "เลือก"} ${law.country} เพื่อเปรียบเทียบ`}
-                  >
-                    <span>{isSelected ? "✓" : "+"}</span> เปรียบเทียบ
-                  </button>
-                </div>
-                <div className="card-country">{law.country}<span>{law.region}</span></div>
-                <h3>{law.title}</h3>
-                <p className="local-title">{law.localTitle}</p>
-                <p className="card-kind">{law.kind}</p>
-                <p className="card-locus">{aimsLocusLabel[documentReading(law).aimsLocus]}</p>
-                <p className="card-summary">{law.summary}</p>
-                <div className="tags">{law.themes.slice(0, 2).map((item) => <span key={item}>{item}</span>)}</div>
-                <div className="card-foot">
-                  <span><small>ปีประกาศใช้</small><b>{law.year}</b></span>
-                  <button type="button" onClick={() => openLaw(law)}>ดูรายละเอียด <span>↗</span></button>
-                </div>
-                <span className="card-number">{String(index + 1).padStart(2, "0")}</span>
-              </article>
-            );
-          })}
-        </div>
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <span>⌕</span>
-            <h3>ยังไม่พบรายการที่ตรงกัน</h3>
-            <p>ลองใช้คำค้นอื่น หรือล้างตัวกรองภูมิภาค ระบบบริหาร ชนิดเอกสาร และประเด็น</p>
-            <button type="button" onClick={resetFilters}>ล้างตัวกรอง</button>
-          </div>
-        )}
-      </section>
-
-      <section className="compare-framework" id="framework">
-        <div className="framework-title">
-          <span className="kicker light">COMPARATIVE FRAMEWORK</span>
-          <h2>มองให้ลึกกว่า<br/>ตัวบทกฎหมาย</h2>
-          <p>ชุดเทียบสำเร็จรูปเป็นทางเข้าตามคำถาม ไม่ใช่คำตอบทั้งระบบ ชุดด้านล่างแยกมิติทั่วไปกับคำถามของไทย</p>
-          <div className="preset-group">
-            <span>ตามมิติ</span>
-            <div className="preset-list">
-              {comparePresets.filter((preset) => !preset.forThai).map((preset) => (
-                <button type="button" className="preset-chip" key={preset.id} onClick={() => applyPreset(preset.ids)}>
-                  <b>{preset.title}</b>
-                  <small>{preset.blurb}</small>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="preset-group">
-            <span>สำหรับคำถามไทย</span>
-            <div className="preset-list">
-              {comparePresets.filter((preset) => preset.forThai).map((preset) => (
-                <button type="button" className="preset-chip" key={preset.id} onClick={() => applyPreset(preset.ids)}>
-                  <b>{preset.title}</b>
-                  <small>{preset.blurb}</small>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="framework-list">
-          {frameworkDimensions.map((item) => {
-            const presets = comparePresets.filter((entry) => entry.dimension === item.key);
-            const primary = presets.find((entry) => !entry.forThai) ?? presets[0];
-            return (
-              <button
-                type="button"
-                className="framework-item"
-                key={item.key}
-                onClick={() => {
-                  if (item.key === "aims") {
-                    document.getElementById("silence-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    return;
-                  }
-                  if (primary) applyPreset(primary.ids);
-                }}
-              >
-                <span>{item.no}</span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.question}</p>
-                  {item.key === "aims" ? (
-                    <em>ทางเข้า: แผนที่ความเงียบเรื่องจุดมุ่งหมาย</em>
-                  ) : (
-                    presets.map((preset) => (
-                      <em key={preset.id}>ชุดเทียบ: {preset.title}</em>
-                    ))
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      
 
       <section className="heritage-section" id="heritage">
         <div className="section-heading">
@@ -1037,168 +1208,90 @@ export default function Home() {
       <section className="phrases-section" id="drafter-phrases">
         <div className="section-heading">
           <div>
-            <span className="kicker">DRAFTER PHRASES</span>
+            <span className="kicker">คลังประโยค</span>
             <h2>คลังประโยคสำหรับผู้ร่าง</h2>
-            <p>ถอดกริยาในตัวบทอย่างสั้น เป็นเครื่องมือร่าง ไม่ใช่คำคมนโยบาย แต่ละประโยคอ้างฉบับในคลัง</p>
+            <p>เรียงตามเก้าหมวดใน พ.ร.บ.การศึกษาแห่งชาติ พ.ศ. 2542 ถอดกริยาจากฉบับในคลัง เป็นเครื่องมือร่าง ไม่ใช่คำคมนโยบาย</p>
           </div>
         </div>
-        <div className="phrases-grid">
-          {drafterPhrases.map((phrase) => {
-            const law = findLaw(phrase.lawId);
-            return (
-              <article key={phrase.verb}>
-                <h3>{phrase.verb}</h3>
-                <p>{phrase.clause}</p>
-                <small>{phrase.useWhen}</small>
-                {law && (
-                  <button type="button" onClick={() => openLaw(law)}>
-                    จาก {law.flag} {law.country}
-                  </button>
-                )}
-              </article>
-            );
-          })}
-        </div>
+        {neaChapters.map((chapter) => (
+          <div className="phrase-chapter" key={chapter.id}>
+            <div>
+              <span className="kicker">{chapter.no}</span>
+              <h3>{chapter.title}</h3>
+              <p>{chapter.thaiWrites}</p>
+            </div>
+            <div className="phrases-grid">
+              {drafterPhrases.filter((phrase) => phrase.chapterId === chapter.id).map((phrase) => {
+                const law = findLaw(phrase.lawId);
+                return (
+                  <article key={phrase.verb}>
+                    <h4>{phrase.verb}</h4>
+                    <p>{phrase.clause}</p>
+                    <small>{phrase.useWhen}</small>
+                    {law && (
+                      <button type="button" onClick={() => openLaw(law)}>
+                        จาก {law.flag} {law.country}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </section>
 
-      <section className="brief-section" id="drafter-brief">
+      <section className="horizon-section" id="horizon">
         <div className="section-heading">
           <div>
-            <span className="kicker">DRAFTER BRIEF</span>
-            <h2>ใบงานผู้ร่าง</h2>
-            <p>ออกจากคลังด้วยชุดเทียบและคำถามร่างของประเด็นหนึ่ง ไม่ใช่ด้วยรายชื่อประเทศที่น่าเลียน เลือกเรื่องแล้วคัดลอกไปใช้ต่อได้</p>
+            <span className="kicker">แบบอย่างเชิงอุดมคติ</span>
+            <h2>ถ้าจะเขียนแม่บทไทยใหม่</h2>
+            <p>เก้าบัตรตามหมวด พ.ร.บ. 2542 เป็นเครื่องมือคิดจากคลังและแรงกดดันของยุค ไม่ใช่ร่างกฎหมาย ไม่ใช่จัดอันดับประเทศ</p>
           </div>
         </div>
-        <div className="brief-shell">
-          <div className="brief-topics" role="tablist" aria-label="ประเด็นใน พ.ร.บ. 2542">
-            {drafterBriefs.map((item) => {
-              const topic = findNeaTopic(item.topicId);
-              if (!topic) return null;
-              return (
-                <button
-                  type="button"
-                  key={item.topicId}
-                  role="tab"
-                  aria-selected={briefTopic === item.topicId}
-                  className={briefTopic === item.topicId ? "active" : ""}
-                  onClick={() => setBriefTopic(item.topicId)}
-                >
-                  {topic.title}
-                </button>
-              );
-            })}
-          </div>
-          {activeBrief && activeBriefTopic && (
-            <article className="brief-sheet" role="tabpanel">
-              <span>ออกจากคลังด้วยใบนี้</span>
-              <h3>{activeBriefTopic.title}</h3>
-              <p><b>สิ่งที่ พ.ร.บ. 2542 เขียน</b> {activeBriefTopic.thaiWrites}</p>
-              <div className="brief-block">
-                <b>ฉบับที่พูดชั้นเดียวกัน</b>
-                <ul>
-                  {activeBriefTopic.sameLayerIds.map((id) => {
-                    const law = findLaw(id);
-                    return law ? (
-                      <li key={id}>
-                        <button type="button" onClick={() => openLaw(law)}>
-                          {law.flag} {law.country} — {law.title}
-                        </button>
-                      </li>
-                    ) : null;
-                  })}
-                </ul>
-              </div>
-              <p><b>ห้ามลอก</b> {activeBriefTopic.doNotCopy}</p>
-              {activeBrief.thaiMechanismIds.length > 0 && (
-                <div className="brief-block">
-                  <b>กลไกไทยในคลัง</b>
+        <div className="horizon-grid">
+          {neaChapters.map((chapter) => {
+            const horizon = findHorizon(chapter.id);
+            if (!horizon) return null;
+            return (
+              <article className="horizon-card" id={`horizon-${chapter.id}`} key={chapter.id}>
+                <span>{chapter.no}</span>
+                <h3>{chapter.title}</h3>
+                <p><b>กฎหมายไทยวันนี้</b> {chapter.thaiWrites}</p>
+                <div className="horizon-slot">
+                  <b>เทคนิคที่มีในคลัง</b>
                   <ul>
-                    {activeBrief.thaiMechanismIds.map((id) => {
-                      const law = findLaw(id);
-                      return law ? (
-                        <li key={id}>
-                          <button type="button" onClick={() => openLaw(law)}>
-                            {law.flag} {law.country} — {law.title}
-                          </button>
-                        </li>
-                      ) : null;
-                    })}
-                  </ul>
-                </div>
-              )}
-              {activeBriefTrap && (
-                <p>
-                  <b>กับดักที่ต้องกัน</b> {activeBriefTrap.title} {activeBriefTrap.whyThai}
-                </p>
-              )}
-              {activeBriefGap && (
-                <p>
-                  <b>ช่องว่างหลักกับกลไก</b> {activeBriefGap.principle} {activeBriefGap.mechanism}
-                </p>
-              )}
-              {activeBriefStack && activeBriefStackLaw && (
-                <div className="brief-block">
-                  <b>แผนภาพชั้นที่ควรเปิดคู่</b>
-                  <p>{activeBriefStackLaw.flag} {activeBriefStackLaw.country} — {activeBriefStack.role}</p>
-                  <ol className="law-stack">
-                    {activeBriefStack.layers.map((layer, index) => {
-                      const content = stackLayerContent(activeBriefStackLaw, layer);
+                    {horizon.techniques.map((item) => {
+                      const law = findLaw(item.lawId);
                       return (
-                        <li key={`${activeBriefStack.lawId}-${index}`} className={content.current ? "current" : ""}>
-                          <b>{layer.label}</b>
-                          {content.catalogId ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = findLaw(content.catalogId);
-                                if (next) openLaw(next);
-                              }}
-                            >
-                              {content.title}
+                        <li key={item.lawId}>
+                          {law ? (
+                            <button type="button" onClick={() => openLaw(law)}>
+                              {law.flag} {law.country}
                             </button>
-                          ) : content.href ? (
-                            <a href={content.href} target="_blank" rel="noopener noreferrer">{content.title}</a>
-                          ) : (
-                            <span>{content.title}</span>
-                          )}
+                          ) : null}
+                          <span>{item.note}</span>
                         </li>
                       );
                     })}
-                  </ol>
-                </div>
-              )}
-              {activeBriefHeritage && activeBriefHeritageLaw && (
-                <p>
-                  <b>มรดกในตัวบท</b> {activeBriefHeritageLaw.flag} {activeBriefHeritageLaw.country}: {activeBriefHeritage.heritage}
-                </p>
-              )}
-              {activeBrief.phraseVerbs.length > 0 && (
-                <div className="brief-block">
-                  <b>กริยาที่ใช้ร่าง</b>
-                  <ul>
-                    {activeBrief.phraseVerbs.map((verb) => {
-                      const phrase = findPhrase(verb);
-                      return phrase ? (
-                        <li key={verb}>
-                          <strong>{phrase.verb}</strong> {phrase.clause}
-                          <small>{phrase.useWhen}</small>
-                        </li>
-                      ) : null;
-                    })}
                   </ul>
                 </div>
-              )}
-              <p><b>คำถามสำหรับผู้ร่าง</b> {activeBriefTopic.drafterQuestion}</p>
-              <p className="brief-takeaway"><b>สิ่งที่ควรทำต่อ</b> {activeBrief.takeaway}</p>
-              <div className="brief-actions">
-                <button type="button" onClick={() => applyPreset(activeBriefTopic.sameLayerIds)}>เปิดคู่เทียบชั้นนี้</button>
-                <button type="button" onClick={copyBrief}>คัดลอกใบงานนี้</button>
-                {activeBriefTrap && (
-                  <button type="button" onClick={() => applyPreset(activeBriefTrap.ids)}>เปิดคู่กับดักนี้</button>
-                )}
-              </div>
-            </article>
-          )}
+                <p>
+                  <b>แรงกดดันของยุค</b>
+                  <small>บริบท ไม่ใช่ข้อพิสูจน์จากคลังนี้</small>
+                  {horizon.pressure}
+                </p>
+                <div className="horizon-rewrite">
+                  <b>ถ้าเขียนแม่บทใหม่</b>
+                  <p>{horizon.ideal}</p>
+                  <p><b>ถือไว้ในแม่บท</b> {horizon.stayInMother}</p>
+                  <p><b>ส่งลงฉบับเฉพาะ</b> {horizon.goToSpecific}</p>
+                  <p><b>ห้ามเขียน</b> {horizon.doNotWrite}</p>
+                  <p><b>คำถามสำหรับผู้ร่าง</b> {horizon.drafterQuestion}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -1222,6 +1315,7 @@ export default function Home() {
           ))}
         </div>
       </section>
+      </details>
 
       <section className="about-section" id="about">
         <div className="about-portrait">
@@ -1244,17 +1338,14 @@ export default function Home() {
       </section>
 
       <footer>
-        <div className="footer-brand"><span className="brand-seal inverse"><span>EA</span></span><div><b>EduLex Atlas</b><small>หอดูดาวกฎหมายแม่บทการศึกษา</small></div></div>
+        <div className="footer-brand"><span className="brand-seal inverse"><span>EA</span></span><div><b>EduLex Atlas</b><small>คลังกฎหมายการศึกษา</small></div></div>
         <div className="footer-links">
-          <a href="#one-pass">เรียนจบรอบหนึ่ง</a>
-          <a href="#how-to-read">วิธีอ่าน</a>
-          <a href="#reading-paths">แนวทาง</a>
-          <a href="#traps">กับดักการเทียบ</a>
-          <a href="#nea-map">สู่ พ.ร.บ. 2542</a>
-          <a href="#drafter-brief">ใบงานผู้ร่าง</a>
-          <a href="#catalog-limits">ขอบเขตคลัง</a>
-          <a href="#library">คลังกฎหมาย</a>
-          <a href="#about">ผู้จัดทำ</a>
+          <a href="#one-pass">วิธีใช้</a>
+          <a href="#library">คลัง</a>
+          <a href="#framework">เทียบ</a>
+          <a href="#drafter-brief">ใบงาน</a>
+          <a href="#deep-read">เชิงลึก</a>
+          <a href="#about">เกี่ยวกับ</a>
         </div>
         <div className="footer-meta"><span>© 2026 Boorapatis Ploysuwan</span><a href="mailto:burapatis@gmail.com">burapatis@gmail.com</a><span>สร้างขึ้นเพื่อการศึกษาและการวิจัย</span></div>
       </footer>

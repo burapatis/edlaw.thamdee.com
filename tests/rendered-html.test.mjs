@@ -54,12 +54,20 @@ test("server-renders EduLex Atlas in Thai", async () => {
   assert.match(html, /มรดกในตัวบท/);
   assert.match(html, /เส้นเวลาการเขียนใหม่ของแม่บท/);
   assert.match(html, /คลังประโยคสำหรับผู้ร่าง/);
+  assert.match(html, /หมวด 9/);
+  assert.match(html, /แนวการจัดการศึกษา/);
+  assert.match(html, /ทรัพยากรและการลงทุนเพื่อการศึกษา/);
+  assert.match(html, /แบบอย่างเชิงอุดมคติ/);
+  assert.match(html, /ถ้าจะเขียนแม่บทไทยใหม่/);
+  assert.match(html, /ไม่ใช่ร่างกฎหมาย/);
   assert.match(html, /ใบงานผู้ร่าง/);
   assert.match(html, /เรียนจบรอบหนึ่ง/);
   assert.match(html, /คลังนี้ตอบอะไรไม่ได้/);
   assert.match(html, /id="nea-map"/);
   assert.match(html, /id="drafter-brief"/);
   assert.match(html, /id="one-pass"/);
+  assert.match(html, /id="deep-read"/);
+  assert.match(html, /id="horizon"/);
   assert.match(html, /id="catalog-limits"/);
   assert.match(html, /อังกฤษและเวลส์/);
   assert.match(html, /ข้ามไปยังคลังกฎหมาย/);
@@ -161,8 +169,10 @@ test("catalog data is complete and uses unique jurisdiction codes", async () => 
   assert.match(page, /id="heritage"/);
   assert.match(page, /id="rewrite-timeline"/);
   assert.match(page, /id="drafter-phrases"/);
+  assert.match(page, /id="horizon"/);
   assert.match(page, /id="drafter-brief"/);
   assert.match(page, /id="one-pass"/);
+  assert.match(page, /id="deep-read"/);
   assert.match(page, /id="catalog-limits"/);
   assert.match(data, /export const neaTopics/);
   assert.match(data, /export const citedStacks/);
@@ -170,6 +180,8 @@ test("catalog data is complete and uses unique jurisdiction codes", async () => 
   assert.match(data, /export const heritageReadings/);
   assert.match(data, /export const rewriteTimeline/);
   assert.match(data, /export const drafterPhrases/);
+  assert.match(data, /export const neaChapters/);
+  assert.match(data, /export const horizonBriefs/);
   assert.match(data, /export const drafterBriefs/);
   assert.match(data, /export const onePassSteps/);
   assert.match(data, /export const catalogLimits/);
@@ -179,13 +191,45 @@ test("catalog data is complete and uses unique jurisdiction codes", async () => 
   assert.equal([...passBlock.matchAll(/no: "/g)].length, 5);
   assert.match(passBlock, /lawId: "thailand"/);
   const limitBlock = data.slice(data.indexOf("export const catalogLimits"), data.indexOf("export const librarySorts"));
-  assert.equal(quotedValues(limitBlock, "id").length, 5);
+  assert.equal(quotedValues(limitBlock, "id").length, 6);
   const briefBlock = data.slice(data.indexOf("export const drafterBriefs"), data.indexOf("export function findNeaTopic"));
   const briefTopics = quotedValues(briefBlock, "topicId");
-  assert.equal(briefTopics.length, 6);
-  assert.equal(new Set(briefTopics).size, 6);
-  for (const id of ["aims", "rights", "devolution", "quality", "teachers", "lifelong"]) {
+  assert.equal(briefTopics.length, 9);
+  assert.equal(new Set(briefTopics).size, 9);
+  for (const id of ["aims", "rights", "lifelong", "pedagogy", "devolution", "quality", "teachers", "resources", "technology"]) {
     assert.ok(briefTopics.includes(id), `missing brief for ${id}`);
+  }
+  const chapterBlock = data.slice(data.indexOf("export const neaChapters"), data.indexOf("export const drafterPhrases"));
+  const chapterIds = quotedValues(chapterBlock, "id");
+  assert.equal(chapterIds.length, 9);
+  assert.equal(new Set(chapterIds).size, 9);
+  for (const id of ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8", "ch9"]) {
+    assert.ok(chapterIds.includes(id), `missing chapter ${id}`);
+  }
+  const phraseBlock = data.slice(data.indexOf("export const drafterPhrases"), data.indexOf("export const drafterBriefs"));
+  const phraseVerbs = quotedValues(phraseBlock, "verb");
+  const phraseLawIds = quotedValues(phraseBlock, "lawId");
+  const phraseChapters = quotedValues(phraseBlock, "chapterId");
+  assert.equal(phraseVerbs.length, phraseLawIds.length);
+  assert.equal(new Set(phraseVerbs).size, phraseVerbs.length);
+  assert.ok(phraseVerbs.length >= 27, `expected at least 27 phrases, got ${phraseVerbs.length}`);
+  for (const lawId of phraseLawIds) {
+    assert.ok(ids.includes(lawId), `unknown phrase law ${lawId}`);
+  }
+  for (const chapterId of phraseChapters) {
+    assert.ok(chapterIds.includes(chapterId), `unknown phrase chapter ${chapterId}`);
+  }
+  for (const id of chapterIds) {
+    const count = phraseChapters.filter((chapterId) => chapterId === id).length;
+    assert.ok(count >= 3, `${id} should have at least 3 phrases, got ${count}`);
+  }
+  const thaiPhraseCount = phraseLawIds.filter((id) => id === "thailand" || id.startsWith("thai-")).length;
+  assert.ok(thaiPhraseCount >= 9, `expected a Thai-source phrase coverage, got ${thaiPhraseCount}`);
+  const briefPhraseVerbs = [...briefBlock.matchAll(/phraseVerbs: \[([^\]]+)\]/g)].flatMap((match) =>
+    match[1].split(",").map((item) => item.trim().replace(/"/g, "")).filter(Boolean),
+  );
+  for (const verb of briefPhraseVerbs) {
+    assert.ok(phraseVerbs.includes(verb), `unknown brief phrase ${verb}`);
   }
   for (const trapId of quotedValues(briefBlock, "trapId")) {
     assert.ok(data.includes(`id: "${trapId}"`), `unknown trap ${trapId}`);
@@ -200,6 +244,23 @@ test("catalog data is complete and uses unique jurisdiction codes", async () => 
   )) {
     assert.ok(ids.includes(mechanismId), `unknown mechanism ${mechanismId}`);
   }
+  for (const chapterId of quotedValues(briefBlock, "chapterId")) {
+    assert.ok(chapterIds.includes(chapterId), `unknown brief chapter ${chapterId}`);
+  }
+  assert.equal(new Set(quotedValues(briefBlock, "chapterId")).size, 9);
+  const horizonBlock = data.slice(data.indexOf("export const horizonBriefs"), data.indexOf("export const onePassSteps"));
+  const horizonChapters = quotedValues(horizonBlock, "chapterId");
+  assert.equal(horizonChapters.length, 9);
+  assert.equal(new Set(horizonChapters).size, 9);
+  for (const id of chapterIds) {
+    assert.ok(horizonChapters.includes(id), `missing horizon for ${id}`);
+  }
+  for (const lawId of quotedValues(horizonBlock, "lawId")) {
+    assert.ok(ids.includes(lawId), `unknown horizon law ${lawId}`);
+  }
+  assert.match(horizonBlock, /stayInMother/);
+  assert.match(horizonBlock, /goToSpecific/);
+  assert.match(horizonBlock, /doNotWrite/);
   assert.match(page, /applyPreset/);
   assert.match(layout, /openGraph/);
   assert.match(layout, /const title = "EduLex Atlas/);
